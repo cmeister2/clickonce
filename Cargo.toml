@@ -1,0 +1,32 @@
+[package]
+name = "clickonce"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Parse ClickOnce deployment and application manifests"
+license = "MIT"
+repository = "https://github.com/cmeister2/clickonce"
+readme = "README.md"
+keywords = ["clickonce", "manifest", "windows", "xml"]
+categories = ["parser-implementations"]
+include = ["/src/**", "/examples/**", "/tests/**", "/fixtures/**", "/README.md", "/LICENSE", "/Cargo.toml", "/Cargo.lock"]
+
+[lints.rust]
+missing_docs = "deny"
+
+[lints.clippy]
+missing_docs_in_private_items = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+
+[dependencies]
+base64 = "0.23.1"
+roxmltree = "0.21.2"
+serde = { version = "1.0.229", features = ["derive"], optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dev-dependencies]
+serde_json = "1.0.154"
