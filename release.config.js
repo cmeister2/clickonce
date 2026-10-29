@@ -1,6 +1,6 @@
 /** Release versions are injected into an ephemeral CI checkout. */
 module.exports = {
-  branches: ["main", "master"],
+  branches: ["main"],
   repositoryUrl: "https://github.com/cmeister2/clickonce.git",
   tagFormat: "${version}",
   plugins: [

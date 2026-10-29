@@ -2,20 +2,15 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
-  workflow_dispatch:
-    inputs:
-      release:
-        description: Publish a semantic release to crates.io and GitHub
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   rust:
@@ -79,30 +74,13 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  success:
-    name: Success
-    if: always()
-    needs: [rust, msrv, coverage, release-tools]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require every validation job to pass
-        env:
-          RUST_RESULT: ${{ needs.rust.result }}
-          MSRV_RESULT: ${{ needs.msrv.result }}
-          COVERAGE_RESULT: ${{ needs.coverage.result }}
-          RELEASE_TOOLS_RESULT: ${{ needs.release-tools.result }}
-        run: |
-          test "$RUST_RESULT" = success
-          test "$MSRV_RESULT" = success
-          test "$COVERAGE_RESULT" = success
-          test "$RELEASE_TOOLS_RESULT" = success
-
   release:
-    name: Publish requested release
+    name: Release
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.release &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    needs: [success]
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    needs: [rust, msrv, coverage, release-tools]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -111,6 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v7.1.0
@@ -119,7 +98,45 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm test
-      - run: npx --no-install semantic-release
+      - name: Dry-run release
+        env:
+          RELEASE_BRANCH: ${{ github.head_ref || github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        # Evaluate the PR head as a release branch instead of skipping a PR build.
+        run: >-
+          GITHUB_REF="refs/heads/$RELEASE_BRANCH"
+          npx --no-install semantic-release --dry-run --no-ci --branches "$RELEASE_BRANCH"
+      - name: Publish release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npx --no-install semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  success:
+    name: Success
+    if: always()
+    needs: [rust, msrv, coverage, release-tools, release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every applicable job to pass
+        env:
+          RUST_RESULT: ${{ needs.rust.result }}
+          MSRV_RESULT: ${{ needs.msrv.result }}
+          COVERAGE_RESULT: ${{ needs.coverage.result }}
+          RELEASE_TOOLS_RESULT: ${{ needs.release-tools.result }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+          RELEASE_EXPECTED: >-
+            ${{ github.event_name == 'push' ||
+                github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          test "$RUST_RESULT" = success
+          test "$MSRV_RESULT" = success
+          test "$COVERAGE_RESULT" = success
+          test "$RELEASE_TOOLS_RESULT" = success
+          if [ "$RELEASE_EXPECTED" = true ]; then
+            test "$RELEASE_RESULT" = success
+          else
+            test "$RELEASE_RESULT" = skipped
+          fi

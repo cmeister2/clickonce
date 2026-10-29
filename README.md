@@ -137,9 +137,14 @@ Releases use
 [`@semantic-release-cargo/semantic-release-cargo`](https://github.com/semantic-release-cargo/semantic-release-cargo)
 for version preparation and crates.io publication. The checked-in version is
 `0.0.0`; release versions are injected into the CI checkout. Tags use plain SemVer.
-Only a manual run of **CI** with **release = true** on `main` or `master` can
-publish. Ordinary pushes and pull requests run checks. Configure the repository's
-`CARGO_REGISTRY_TOKEN` Actions secret before requesting a release.
+Pushes to `main` run validation, dry-run the release, then automatically publish
+when semantic-release finds releasable commits. Feature-branch pushes do not
+trigger CI; pull requests run validation once. Pull requests from this repository
+also dry-run the release against their head branch without publishing. Fork pull
+requests skip the release job because registry credentials are unavailable.
+The required **Success** job runs last and includes the release result.
+Configure the repository's `CARGO_REGISTRY_TOKEN` Actions secret before merging
+release changes to `main`.
 
 Format references: Microsoft's [deployment manifest documentation](https://learn.microsoft.com/en-us/visualstudio/deployment/clickonce-deployment-manifest)
 and [application manifest documentation](https://learn.microsoft.com/en-us/visualstudio/deployment/clickonce-application-manifest).
