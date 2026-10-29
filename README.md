@@ -146,5 +146,12 @@ The required **Success** job runs last and includes the release result.
 Configure the repository's `CARGO_REGISTRY_TOKEN` Actions secret before merging
 release changes to `main`.
 
+The typed manifest parser starts the `0.1` release series. The earlier
+`clickonce` versions `0.0.1`, `0.0.2`, and `0.0.3` were published to crates.io in
+2022. The first release from this implementation needs a `feat:` commit to
+select `0.1.0` and avoid those occupied versions. Subsequent `fix:` commits select
+patch releases normally. The release regression checks version selection against
+a temporary local Git repository without publishing.
+
 Format references: Microsoft's [deployment manifest documentation](https://learn.microsoft.com/en-us/visualstudio/deployment/clickonce-deployment-manifest)
 and [application manifest documentation](https://learn.microsoft.com/en-us/visualstudio/deployment/clickonce-application-manifest).
